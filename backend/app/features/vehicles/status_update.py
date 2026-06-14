@@ -27,9 +27,14 @@ async def apply_fault(conn: asyncpg.Connection, vehicle_id: str, reason: str | N
         vehicle_id,
     )
     maintenance_id = await conn.fetchval(
-        "INSERT INTO maintenance (vehicle_id, reason, status) VALUES ($1, $2, 'open') RETURNING id",
+        "INSERT INTO maintenance (vehicle_id, reason, status) VALUES ($1, $2, 'open')"
+        " ON CONFLICT (vehicle_id) WHERE status = 'open' DO NOTHING RETURNING id",
         vehicle_id, reason,
     )
+    if maintenance_id is None:  # an open record already exists — keep exactly one
+        maintenance_id = await conn.fetchval(
+            "SELECT id FROM maintenance WHERE vehicle_id = $1 AND status = 'open'", vehicle_id
+        )
     return StatusResult(
         vehicle_id=vehicle_id, status="fault", fault_handled=True,
         maintenance_id=maintenance_id, mission_cancelled=cancelled_tag.endswith(" 1"),

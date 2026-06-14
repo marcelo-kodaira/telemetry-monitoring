@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from scalar_fastapi import get_scalar_api_reference
 
 from app.core.db import apply_schema, close_pool, init_pool
@@ -23,6 +24,13 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Fleet Telemetry Monitoring", version="0.1.0", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # dashboard is read-only on a trusted network; tighten per-origin in prod
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 for r in (telemetry_router, vehicles_router, zones_router, anomalies_router, fleet_router):
     app.include_router(r)

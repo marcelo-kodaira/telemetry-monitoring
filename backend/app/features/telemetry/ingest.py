@@ -41,7 +41,9 @@ async def ingest_event(conn: asyncpg.Connection, e: TelemetryEvent) -> IngestRes
         " last_seen_at, is_offline, active_anomaly_types)"
         " VALUES ($1,$2,$3,$4,$5,$6,$7, now(), false, $8)"
         " ON CONFLICT (id) DO UPDATE SET"
-        "   status=excluded.status, battery_pct=excluded.battery_pct, lat=excluded.lat,"
+        # fault is terminal until maintenance is resolved: non-fault telemetry must not clear it
+        "   status=CASE WHEN vehicles.status='fault' THEN 'fault' ELSE excluded.status END,"
+        "   battery_pct=excluded.battery_pct, lat=excluded.lat,"
         "   lon=excluded.lon, speed_mps=excluded.speed_mps, last_timestamp=excluded.last_timestamp,"
         "   last_seen_at=now(), is_offline=false, active_anomaly_types=excluded.active_anomaly_types"
         " WHERE excluded.last_timestamp > vehicles.last_timestamp OR vehicles.last_timestamp IS NULL",
