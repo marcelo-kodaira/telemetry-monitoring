@@ -39,11 +39,11 @@ code*, and it deliberately leaves several requirements open. Above all, the exer
 competency: **do we reason correctly about concurrency and choose the right isolation strategy?**
 Every decision below is made through that lens.
 
-> **Implementation status (2026-06-14).** This is the *design* phase: decisions precede code. The
-> repository currently holds these design documents. The backend, dashboard, `schema.sql`,
-> `docker-compose.yml`, and tests described below are the **acceptance criteria** for the
-> implementation that follows — not yet-shipped artifacts. Present-tense descriptions denote
-> intended behavior.
+> **Implementation status (2026-06-14).** Implemented and verified. The backend (vertical slices),
+> the React/FSD dashboard, `schema.sql`, `docker-compose.yml`, and the test suites described below
+> all exist and pass — 17 backend tests including the two concurrency proofs, plus 3 Playwright e2e
+> tests. See the [README](../../README.md) to run it. This ADR records the decisions; the code
+> realizes them.
 
 ## 2. Decision Drivers
 

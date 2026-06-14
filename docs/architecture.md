@@ -5,8 +5,8 @@ the load-bearing choices lives in [`adr/0001-fleet-telemetry-architecture.md`](a
 the concurrency reasoning lives in [`concurrency-and-isolation.md`](concurrency-and-isolation.md);
 endpoint contracts live in [`api-contract.md`](api-contract.md).
 
-> **Status:** design phase. The structure below is the target; code is delivered in the
-> implementation that follows. Treat present-tense descriptions as intended behavior.
+> **Status:** implemented. The structure below matches the shipped `backend/` and `frontend/`
+> trees; 17 backend tests and 3 Playwright e2e tests pass. See the [README](../README.md) to run it.
 
 ## 1. System at a glance
 

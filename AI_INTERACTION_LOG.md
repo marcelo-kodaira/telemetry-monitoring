@@ -127,23 +127,69 @@ end with an honest reflection. Make it read like the engineering record it is."
 
 ---
 
-## Interim reflection (to be finalized at the end of the build)
+## Phase 4 — Planning
 
-- **Where AI was strong:** breadth and speed — fetching and synthesizing the MADR / vertical-slice /
-  FSD patterns, drafting a structurally complete ADR with alternatives-and-rejections, and
-  generating internally-consistent docs + diagrams in one pass. The *parallel adversarial review*
-  was the standout: cheap to run, and it caught precision gaps a single pass would have shipped.
-- **Where it needed steering:** it defaulted toward the *easy* answer (SQLite) over the *instructive*
-  one (Postgres), and toward conventional layering over the vertical-slice/FSD structures I wanted.
-  Left alone it also slid into present-tense "it works" phrasing before any code existed. These are
-  judgment and framing calls — exactly where the human has to hold the line.
-- **What I verified by hand:** the concurrency claims (I sanity-checked the lost-update and
-  `FOR UPDATE`-idempotency reasoning against how Postgres actually behaves, rather than taking the
-  draft's word), the threshold reconciliation, and that every "alternatives + why rejected" block was
-  genuinely present.
-- **Net:** AI compressed roughly a day of design-and-documentation into a focused session, but the
-  quality came from *directing* it, *forcing* alternatives into the open, and *adversarially
-  verifying* the result — not from accepting the first draft.
+**My prompt** `[clear+motivation]`: "Turn the ADR into two ordered, bite-sized TDD plans — backend
+and frontend, as separate subsystems each producing testable software. Real code in the load-bearing
+steps (schema, the locking SQL, the concurrency tests), not 'add error handling' placeholders."
 
-*(Reflection will be completed once implementation, the Playwright verification loop, and the final
-review are done.)*
+**AI output (summary):** Two plans under `docs/superpowers/plans/` — backend (slices, schema with
+partial unique indexes, the ingest/fault SQL, and the two concurrency tests) and frontend (FSD layers,
+zod schemas, polling widgets, Playwright specs), each with exact paths and commands.
+
+**My decision:** inline execution with a **real browser-verify loop** (Playwright), not just unit
+tests — "I want to see it work in a browser, not trust green checkmarks."
+
+## Phase 5 — Implementation
+
+**My prompt** `[clear+motivation]`: "Build the backend first; the concurrency tests are the
+acceptance gate. Raw SQL so the locks are visible. Minimal comments."
+
+**AI output (summary):** The vertical-slice backend, run against a real Postgres in Docker. **17 tests
+passed**, including the two graded proofs — 50 concurrent same-zone entries counting to exactly 50,
+and 20 racing faults producing exactly one maintenance record. Then the FSD frontend, which type-checked
+and built clean.
+
+## Phase 6 — Browser-verify loop (where the real bugs were caught)
+
+This phase justified insisting on a real browser. Three bugs that green unit tests and `curl` all
+missed surfaced only by driving the running app:
+
+1. **CORS.** Playwright showed an empty dashboard — zero vehicle cards. `curl` had been perfectly
+   happy because it isn't a browser and doesn't enforce CORS. The API had no CORS middleware, so the
+   browser silently blocked every cross-origin fetch. *My push to verify in a browser, not just with
+   `curl`, is the only reason this was caught before shipping.* Fix: add `CORSMiddleware`.
+2. **Fault wasn't terminal.** With the simulator running, a faulted vehicle flipped back to `moving`
+   — later telemetry overwrote the `fault` status, contradicting the ADR's "fault is terminal until
+   maintenance is resolved." The implementation didn't match its own design doc. Fix: a `CASE` guard
+   in the snapshot upsert that preserves `fault`.
+3. **A 500 on the fault path.** A leftover open-maintenance row (from the first, CORS-failed e2e run)
+   made the fault `INSERT` violate the partial unique index and return a 500 — the idempotency check
+   only looked at `vehicles.status`, not at the open-maintenance invariant. Fix: `INSERT … ON CONFLICT
+   (vehicle_id) WHERE status='open' DO NOTHING` so the critical path can never crash on a duplicate.
+
+**My direction throughout:** treat each failure as a real defect, fix the root cause, re-run the whole
+suite, and re-screenshot — not paper over symptoms. After the fixes: **3 Playwright e2e + 17 backend
+tests green**, and the screenshot showed a live dashboard (50 cards, statuses, batteries, anomalies,
+live zone bars).
+
+## Final reflection — what AI was good at, where it failed, what I double-checked
+
+- **Strongest at breadth and structure.** Synthesizing the MADR / vertical-slice / FSD patterns,
+  producing a complete ADR with genuine "alternatives + why rejected," and scaffolding two
+  internally-consistent subsystems fast. The **parallel adversarial review** of the ADR was the single
+  highest-leverage step — five cheap independent agents caught precision gaps (a `FOR UPDATE`
+  precondition, a threshold contradiction, an unbounded-rows risk) that one pass would have shipped.
+- **Weakest at judgment and "does it actually run."** Left to defaults it reached for the *easy*
+  option (SQLite) over the *instructive* one (Postgres), drifted toward conventional layering, wrote
+  "it works" before code existed, and — most importantly — **forgot CORS**, the kind of integration
+  detail that unit tests and `curl` never expose. The browser loop, not the model's confidence, found
+  the real bugs.
+- **What I double-checked by hand:** the concurrency claims (I verified the lost-update and
+  `FOR UPDATE` reasoning against Postgres's actual behavior rather than the draft's prose), that the
+  fault path truly matched the ADR's "terminal fault" rule, and that the e2e tests exercised the real
+  cross-origin stack rather than an in-process shortcut.
+- **The pattern that worked:** AI for breadth (research, drafting, fan-out review, scaffolding) +
+  human for direction and the quality bar (forcing alternatives, demanding a real browser, treating
+  every failure as a root-cause fix). The leverage was large, but it came from *driving and verifying*
+  the AI — never from trusting the first green check.
