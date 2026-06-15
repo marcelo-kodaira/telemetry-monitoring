@@ -201,6 +201,34 @@ write=transaction split. And the sweep's flagged "circular dependency" was a **f
 there was no real cycle (vehicles never imports telemetry), so the misleading workaround comment was
 deleted rather than worked around.
 
+## Phase 8 — Targeted review: readability & frontend UX
+
+**My prompt** `[clear+motivation]`: "The `anomaly_rules` logic is terribly written — a lot of ifs,
+many nested. Code smell. I also see non-intuitive variables all over the code and magic numbers; fix
+them. The frontend is missing empty states, skeletons for loading, a robust dedicated error handler,
+and a dedicated success/error indicator like a toast."
+
+**AI output (summary):**
+- **anomaly_rules** — replaced the long nested if-chain with a flat **rule registry**: each rule is a
+  self-contained early-return function over a `RuleContext` that precomputes elapsed-time and
+  prior-position once, so `evaluate()` collapses to a one-line comprehension and the nesting is gone.
+  Behaviour identical (the mutually-exclusive critical/low battery and edge-triggered persistence
+  preserved).
+- **Readability** — renamed cryptic variables (`e`→`event`, `a`→`anomaly`, `r`→`row`, `s`→`status`,
+  `prev`→`previous`) and extracted magic numbers to named constants (`EARTH_RADIUS_M`,
+  `RATE_DECIMALS`, simulator tunables).
+- **Frontend UX** — a reusable `QueryBoundary` (error / loading-skeleton / empty / content),
+  `Skeleton`/`EmptyState`/`ErrorState` primitives, an app-level `ErrorBoundary`, and `sonner` toasts
+  wired to the TanStack `QueryCache` as a connection indicator (persistent "lost connection" toast,
+  replaced by a brief "reconnected" toast on the next success). Added an e2e test that aborts the API
+  and asserts both the error state and the toast.
+
+**My correction / direction:** I wanted the error handling **centralized and robust**, not a
+per-widget `if (isError)` copy — so it became one `QueryBoundary` + one `ErrorBoundary` + one
+cache-level toast, not three ad-hoc handlers. And the rule refactor had to stay
+**behaviour-preserving** — the 17 backend tests + 4 e2e are the proof it still matches, not my
+say-so.
+
 ## Final reflection — what AI was good at, where it failed, what I double-checked
 
 - **Strongest at breadth and structure.** Synthesizing the MADR / vertical-slice / FSD patterns,
@@ -223,6 +251,11 @@ deleted rather than worked around.
   surfacing* candidates; the triage — dedup, reject false positives, decide what's actually worth
   changing — stayed a human call. Applying all 41 verbatim would have been busywork plus one real
   mistake.
+- **Refactors are where the tests earn their keep.** Flattening the rule engine and renaming
+  variables across the data path look safe and aren't — the 17 backend tests + e2e caught any
+  behavioural drift instantly, so I could push readability hard without re-reasoning every edge case
+  by hand. The discipline of "behaviour-preserving, tests green after each step" is what made the
+  AI's large mechanical edits trustworthy.
 - **The pattern that worked:** AI for breadth (research, drafting, fan-out review, scaffolding) +
   human for direction and the quality bar (forcing alternatives, demanding a real browser, treating
   every failure as a root-cause fix, and deciding which review findings are real). The leverage was
