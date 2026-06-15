@@ -1,21 +1,11 @@
 import asyncpg
 
+from app.features.vehicles import queries
 from app.features.vehicles.schemas import LatestAnomaly, VehicleView
-
-_SQL = """
-SELECT v.id AS vehicle_id, v.status, v.battery_pct, v.lat, v.lon, v.is_offline, v.last_seen_at,
-       a.type AS a_type, a.severity AS a_severity, a.detected_at AS a_detected_at
-FROM vehicles v
-LEFT JOIN LATERAL (
-    SELECT type, severity, detected_at FROM anomalies
-    WHERE vehicle_id = v.id ORDER BY detected_at DESC LIMIT 1
-) a ON true
-ORDER BY v.id
-"""
 
 
 async def list_vehicles(conn: asyncpg.Connection) -> list[VehicleView]:
-    rows = await conn.fetch(_SQL)
+    rows = await conn.fetch(queries.LIST_WITH_LATEST_ANOMALY)
     vehicles: list[VehicleView] = []
     for row in rows:
         latest_anomaly = None

@@ -3,11 +3,10 @@ from datetime import datetime
 from fastapi import APIRouter, Query
 
 from app.core.db import get_pool
+from app.features.anomalies import queries
 from app.features.anomalies.schemas import AnomalyListView, AnomalyView
 
 router = APIRouter(tags=["anomalies"])
-
-_SELECT = "SELECT id, vehicle_id, type, severity, detected_at, details FROM anomalies"
 
 
 @router.get("/anomalies", summary="Query recent anomalies by vehicle and time range")
@@ -33,7 +32,7 @@ async def get_anomalies(
     where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
 
     rows = await get_pool().fetch(
-        f"{_SELECT}{where} ORDER BY detected_at DESC LIMIT {param(limit)}", *args
+        f"{queries.SELECT_ANOMALIES}{where} ORDER BY detected_at DESC LIMIT {param(limit)}", *args
     )
     items = [
         AnomalyView(

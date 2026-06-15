@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from app.core.db import get_pool
 from app.core.domain import VehicleStatus
+from app.features.fleet import queries
 
 router = APIRouter(tags=["fleet"])
 
@@ -19,9 +20,9 @@ class FleetStateView(BaseModel):
 @router.get("/fleet/state", summary="Aggregate per-status counts (MVCC-safe)")
 async def get_fleet_state() -> FleetStateView:
     pool = get_pool()
-    rows = await pool.fetch("SELECT status, count(*) AS n FROM vehicles GROUP BY status")
-    offline = await pool.fetchval("SELECT count(*) FROM vehicles WHERE is_offline")
-    total = await pool.fetchval("SELECT count(*) FROM vehicles")
+    rows = await pool.fetch(queries.STATUS_COUNTS)
+    offline = await pool.fetchval(queries.OFFLINE_COUNT)
+    total = await pool.fetchval(queries.TOTAL_COUNT)
     counts = {status.value: 0 for status in VehicleStatus}
     for row in rows:
         counts[row["status"]] = row["n"]

@@ -3,24 +3,14 @@ import logging
 
 from app.core.config import settings
 from app.core.db import get_pool
-from app.core.domain import AnomalyType, Severity
+from app.features.anomalies import queries
 
 logger = logging.getLogger(__name__)
-
-_STMT = f"""
-WITH newly_offline AS (
-    UPDATE vehicles SET is_offline = true
-    WHERE NOT is_offline AND last_seen_at < now() - ($1 || ' seconds')::interval
-    RETURNING id
-)
-INSERT INTO anomalies (vehicle_id, type, severity, details)
-SELECT id, '{AnomalyType.STALE_OFFLINE}', '{Severity.CRITICAL}', '{{}}'::jsonb FROM newly_offline
-"""
 
 
 async def sweep_once() -> None:
     async with get_pool().acquire() as conn:
-        await conn.execute(_STMT, str(settings.staleness_seconds))
+        await conn.execute(queries.MARK_NEWLY_OFFLINE, str(settings.staleness_seconds))
 
 
 async def _loop() -> None:
