@@ -1,20 +1,16 @@
-import asyncpg
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
 from app.core import db as db_mod
-from app.core.config import settings
 from app.main import app
 
 
 @pytest_asyncio.fixture
 async def pool():
-    p = await asyncpg.create_pool(settings.database_url, min_size=2, max_size=10)
-    db_mod._pool = p
+    p = await db_mod.init_pool()  # same pool setup as prod (incl. the jsonb codec)
     await db_mod.apply_schema()
     yield p
-    await p.close()
-    db_mod._pool = None
+    await db_mod.close_pool()
 
 
 @pytest_asyncio.fixture

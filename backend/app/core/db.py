@@ -1,3 +1,4 @@
+import json
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -9,12 +10,18 @@ _pool: asyncpg.Pool | None = None
 SCHEMA_PATH = Path(__file__).resolve().parents[2] / "schema.sql"
 
 
+async def _init_connection(conn: asyncpg.Connection) -> None:
+    # jsonb flows as plain Python dicts in both directions — no per-call json.dumps/loads
+    await conn.set_type_codec("jsonb", encoder=json.dumps, decoder=json.loads, schema="pg_catalog")
+
+
 async def init_pool() -> asyncpg.Pool:
     global _pool
     _pool = await asyncpg.create_pool(
         settings.database_url,
         min_size=settings.pool_min_size,
         max_size=settings.pool_max_size,
+        init=_init_connection,
     )
     return _pool
 

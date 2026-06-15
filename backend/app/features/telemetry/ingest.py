@@ -1,5 +1,3 @@
-import json
-
 import asyncpg
 
 from app.core.domain import VehicleStatus
@@ -29,7 +27,7 @@ async def ingest_event(conn: asyncpg.Connection, e: TelemetryEvent) -> IngestRes
     for a in new:
         await conn.execute(
             "INSERT INTO anomalies (vehicle_id, type, severity, details) VALUES ($1,$2,$3,$4)",
-            e.vehicle_id, a.type, a.severity, json.dumps(a.details),
+            e.vehicle_id, a.type, a.severity, a.details,
         )
 
     if e.zone_entered is not None:

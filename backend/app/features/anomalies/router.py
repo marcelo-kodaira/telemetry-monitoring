@@ -1,4 +1,3 @@
-import json
 from datetime import datetime
 
 from fastapi import APIRouter, Query
@@ -38,7 +37,7 @@ async def get_anomalies(
     items = [
         AnomalyView(
             id=r["id"], vehicle_id=r["vehicle_id"], type=r["type"], severity=r["severity"],
-            detected_at=r["detected_at"], details=json.loads(r["details"]),
+            detected_at=r["detected_at"], details=r["details"],
         )
         for r in rows
     ]
