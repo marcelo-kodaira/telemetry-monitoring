@@ -1,8 +1,9 @@
-import { getFleetState } from "@/entities/fleet/api/get-fleet-state";
+import { fleetKey, getFleetState } from "@/entities/fleet";
 import { usePolledQuery } from "@/shared/lib/hooks/use-polled-query";
 
 export function FleetSummary() {
-  const { data } = usePolledQuery(["fleet"], getFleetState);
+  const { data, isError } = usePolledQuery(fleetKey, getFleetState);
+  if (isError) return <p className="text-red-600">Failed to load fleet state.</p>;
   if (!data) return null;
   const items = [
     ["idle", data.counts.idle],

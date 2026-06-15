@@ -1,10 +1,9 @@
-import { getVehicles } from "@/entities/vehicle/api/get-vehicles";
-import { VehicleCard } from "@/entities/vehicle/ui/vehicle-card";
+import { VehicleCard, getVehicles, vehiclesKey } from "@/entities/vehicle";
 import { usePolledQuery } from "@/shared/lib/hooks/use-polled-query";
 import { vehicleNumber } from "@/shared/lib/format";
 
 export function FleetGrid() {
-  const { data, isError } = usePolledQuery(["vehicles"], getVehicles);
+  const { data, isError } = usePolledQuery(vehiclesKey, getVehicles);
   if (isError) return <p className="text-red-600">Failed to load vehicles.</p>;
   const vehicles = [...(data ?? [])].sort(
     (a, b) => vehicleNumber(a.vehicle_id) - vehicleNumber(b.vehicle_id),

@@ -6,9 +6,12 @@ export const latestAnomalySchema = z.object({
   detected_at: z.string(),
 });
 
+export const vehicleStatusEnum = z.enum(["idle", "moving", "charging", "fault"]);
+export type VehicleStatus = z.infer<typeof vehicleStatusEnum>;
+
 export const vehicleSchema = z.object({
   vehicle_id: z.string(),
-  status: z.enum(["idle", "moving", "charging", "fault"]),
+  status: vehicleStatusEnum,
   battery_pct: z.number(),
   lat: z.number().nullable(),
   lon: z.number().nullable(),
