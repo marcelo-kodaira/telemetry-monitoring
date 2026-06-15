@@ -1,13 +1,12 @@
 from datetime import datetime
-from typing import Literal
 
 from pydantic import BaseModel
 
-Status = Literal["idle", "moving", "charging", "fault"]
+from app.core.domain import VehicleStatus
 
 
 class StatusUpdate(BaseModel):
-    status: Status
+    status: VehicleStatus
     reason: str | None = None
 
 
@@ -27,7 +26,7 @@ class LatestAnomaly(BaseModel):
 
 class VehicleView(BaseModel):
     vehicle_id: str
-    status: str
+    status: VehicleStatus
     battery_pct: int
     lat: float | None = None
     lon: float | None = None

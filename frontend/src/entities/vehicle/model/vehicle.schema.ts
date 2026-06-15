@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const latestAnomalySchema = z.object({
   type: z.string(),
-  severity: z.string(),
+  severity: z.enum(["critical", "warning"]),
   detected_at: z.string(),
 });
 

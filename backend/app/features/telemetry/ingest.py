@@ -2,6 +2,7 @@ import json
 
 import asyncpg
 
+from app.core.domain import VehicleStatus
 from app.features.telemetry.anomaly_rules import evaluate
 from app.features.telemetry.schemas import DetectedAnomaly, IngestResult, TelemetryEvent
 
@@ -51,7 +52,7 @@ async def ingest_event(conn: asyncpg.Connection, e: TelemetryEvent) -> IngestRes
         [a.type for a in active],
     )
 
-    if e.status == "fault":
+    if e.status == VehicleStatus.FAULT:
         from app.features.vehicles.status_update import apply_fault
 
         await apply_fault(conn, e.vehicle_id, reason="fault reported via telemetry")

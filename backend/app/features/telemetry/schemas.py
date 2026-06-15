@@ -1,11 +1,9 @@
 from datetime import datetime
-from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.core.domain import VehicleStatus
 from app.core.zones import ZONE_SET
-
-Status = Literal["idle", "moving", "charging", "fault"]
 
 
 class TelemetryEvent(BaseModel):
@@ -15,7 +13,7 @@ class TelemetryEvent(BaseModel):
     lon: float
     battery_pct: int = Field(ge=0, le=100)
     speed_mps: float = Field(ge=0)
-    status: Status
+    status: VehicleStatus
     error_codes: list[str] = Field(default_factory=list)
     zone_entered: str | None = None
 
