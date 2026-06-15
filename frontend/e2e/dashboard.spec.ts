@@ -38,3 +38,12 @@ test("a faulted vehicle surfaces a fault state in its card", async ({ page, requ
   await page.goto("/");
   await expect(page.locator('[data-vehicle="v-5"]')).toContainText("fault", { timeout: 6_000 });
 });
+
+test("shows a dedicated error state and a connection toast when the API is unreachable", async ({ page }) => {
+  for (const path of ["**/vehicles", "**/fleet/state", "**/zones/counts"]) {
+    await page.route(path, (route) => route.abort());
+  }
+  await page.goto("/");
+  await expect(page.getByText("Couldn't load the fleet.")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(/Lost connection to the telemetry API/i)).toBeVisible({ timeout: 10_000 });
+});
