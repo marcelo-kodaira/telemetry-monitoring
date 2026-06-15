@@ -27,6 +27,9 @@ Playwright e2e. See the ADR for why each was chosen.
 
 ## Run it (one path, ~3 commands)
 
+> For a precise, verified walkthrough (tests, simulator, the no-Docker path, troubleshooting) see
+> [`docs/running-locally.md`](docs/running-locally.md).
+
 ```bash
 # 1. Start PostgreSQL + the API (schema is applied and seeded automatically on boot)
 docker compose up -d --build          # API on http://localhost:8000  (Scalar docs at /scalar)

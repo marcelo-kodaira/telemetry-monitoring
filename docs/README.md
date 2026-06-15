@@ -4,6 +4,7 @@ Design-phase documentation for the fleet telemetry monitoring service. Start wit
 
 | Document | What it is |
 | -------- | ---------- |
+| [`running-locally.md`](running-locally.md) | **Precise, verified run guide** — prerequisites, one-command stack, tests, simulator, troubleshooting |
 | [`adr/0001-fleet-telemetry-architecture.md`](adr/0001-fleet-telemetry-architecture.md) | **The ADR** — every key decision with alternatives considered + why rejected, the four required questions, and consequences (MADR-influenced) |
 | [`architecture.md`](architecture.md) | Vertical-slice (backend) + Feature-Sliced + atomic design (frontend), repo map, coding standards, test strategy |
 | [`concurrency-and-isolation.md`](concurrency-and-isolation.md) | Per-operation isolation reasoning — the naive-wrong vs our-approach, with SQL, isolation level, and the test that proves each claim |
