@@ -1,0 +1,57 @@
+import json
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+import asyncpg
+
+from app.core.config import settings
+from app.core.zones import ZONES
+
+_pool: asyncpg.Pool | None = None
+SCHEMA_PATH = Path(__file__).resolve().parents[2] / "schema.sql"
+
+
+async def _init_connection(conn: asyncpg.Connection) -> None:
+    # jsonb flows as plain Python dicts in both directions — no per-call json.dumps/loads
+    await conn.set_type_codec("jsonb", encoder=json.dumps, decoder=json.loads, schema="pg_catalog")
+
+
+async def init_pool() -> asyncpg.Pool:
+    global _pool
+    _pool = await asyncpg.create_pool(
+        settings.database_url,
+        min_size=settings.pool_min_size,
+        max_size=settings.pool_max_size,
+        init=_init_connection,
+    )
+    return _pool
+
+
+async def apply_schema() -> None:
+    async with get_pool().acquire() as conn:
+        await conn.execute(SCHEMA_PATH.read_text())
+        # ZONES is the single source of truth for the zone set — seed from it, not a SQL literal list
+        await conn.executemany(
+            "INSERT INTO zone_counts (zone_id) VALUES ($1) ON CONFLICT (zone_id) DO NOTHING",
+            [(z,) for z in ZONES],
+        )
+
+
+async def close_pool() -> None:
+    global _pool
+    if _pool is not None:
+        await _pool.close()
+        _pool = None
+
+
+def get_pool() -> asyncpg.Pool:
+    if _pool is None:
+        raise RuntimeError("pool not initialized")
+    return _pool
+
+
+@asynccontextmanager
+async def transaction():
+    async with get_pool().acquire() as conn:
+        async with conn.transaction():
+            yield conn
