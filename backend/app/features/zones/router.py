@@ -23,5 +23,5 @@ async def get_zone_counts() -> ZoneCountsView:
     rows = await get_pool().fetch("SELECT zone_id, entry_count FROM zone_counts ORDER BY zone_id")
     return ZoneCountsView(
         generated_at=datetime.now(timezone.utc),
-        zones=[ZoneCount(zone_id=r["zone_id"], entry_count=r["entry_count"]) for r in rows],
+        zones=[ZoneCount(zone_id=row["zone_id"], entry_count=row["entry_count"]) for row in rows],
     )

@@ -16,16 +16,18 @@ ORDER BY v.id
 
 async def list_vehicles(conn: asyncpg.Connection) -> list[VehicleView]:
     rows = await conn.fetch(_SQL)
-    out: list[VehicleView] = []
-    for r in rows:
-        latest = None
-        if r["a_type"] is not None:
-            latest = LatestAnomaly(type=r["a_type"], severity=r["a_severity"], detected_at=r["a_detected_at"])
-        out.append(
+    vehicles: list[VehicleView] = []
+    for row in rows:
+        latest_anomaly = None
+        if row["a_type"] is not None:
+            latest_anomaly = LatestAnomaly(
+                type=row["a_type"], severity=row["a_severity"], detected_at=row["a_detected_at"]
+            )
+        vehicles.append(
             VehicleView(
-                vehicle_id=r["vehicle_id"], status=r["status"], battery_pct=r["battery_pct"],
-                lat=r["lat"], lon=r["lon"], is_offline=r["is_offline"], last_seen_at=r["last_seen_at"],
-                latest_anomaly=latest,
+                vehicle_id=row["vehicle_id"], status=row["status"], battery_pct=row["battery_pct"],
+                lat=row["lat"], lon=row["lon"], is_offline=row["is_offline"],
+                last_seen_at=row["last_seen_at"], latest_anomaly=latest_anomaly,
             )
         )
-    return out
+    return vehicles
