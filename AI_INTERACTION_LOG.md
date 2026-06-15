@@ -229,6 +229,31 @@ cache-level toast, not three ad-hoc handlers. And the rule refactor had to stay
 **behaviour-preserving** — the 17 backend tests + 4 e2e are the proof it still matches, not my
 say-so.
 
+## Phase 9 — Data-layer debate, slice-local queries, a verified runbook
+
+**My prompt** `[clear+motivation]`: "I don't think it's a good idea to *not* have a dedicated data
+layer — should the SQL really sit with the business logic? I don't want too many layers, but this
+feels like too much. What do you think? **Stand your ground.**"
+
+**AI output (summary):** I pushed back instead of complying. The argument: in this service the SQL
+*is* the business logic — the concurrency invariants (atomic `UPDATE … +1`, `SELECT … FOR UPDATE`
+idempotency, the `ON CONFLICT … WHERE newer` guard) live in the SQL **and the transaction boundary**,
+so a repository would hide the very isolation strategy the whole design is about. And because
+`ingest_event` runs five statements in **one** transaction holding a row lock, a repository forces
+either broken atomicity (per-method transactions), a leaky `conn`-passing API, or a Unit-of-Work —
+*more* layering, not less. I recommended the proportionate middle: a slice-local **`queries.py`** (SQL
+out of the orchestration, handler still owns the transaction), not a data layer.
+
+**My decision:** agreed — "lift the SQL into a separate module on each slice." `queries.py` was added
+to all five slices; handlers now read as orchestration steps. Behaviour-preserving (17 tests green).
+
+**Then:** "add a precise, working local-run doc." I wrote `docs/running-locally.md` and **verified
+every command against the actual stack** — which immediately caught a real bug: the Dockerfile ran
+`pip install -e .` *before* copying the source, so `docker compose up --build` failed (the host venv
+had masked it). Fixed the build order + added a `[build-system]` table and `.dockerignore`, then
+re-verified: `docker compose up` → healthy, `docker compose exec api pytest` → 17 passed,
+`npx playwright test` → 4 passed.
+
 ## Final reflection — what AI was good at, where it failed, what I double-checked
 
 - **Strongest at breadth and structure.** Synthesizing the MADR / vertical-slice / FSD patterns,
@@ -256,6 +281,10 @@ say-so.
   behavioural drift instantly, so I could push readability hard without re-reasoning every edge case
   by hand. The discipline of "behaviour-preserving, tests green after each step" is what made the
   AI's large mechanical edits trustworthy.
+- **A useful pair pushes back.** Asked to add a dedicated data layer, the right move was to argue
+  *against* it with concrete reasons (it would hide the isolation strategy and break the single-
+  transaction boundary) and offer the proportionate alternative — not to comply. A model that just
+  does what it's told would have added the wrong abstraction; the value was in the disagreement.
 - **The pattern that worked:** AI for breadth (research, drafting, fan-out review, scaffolding) +
   human for direction and the quality bar (forcing alternatives, demanding a real browser, treating
   every failure as a root-cause fix, and deciding which review findings are real). The leverage was
