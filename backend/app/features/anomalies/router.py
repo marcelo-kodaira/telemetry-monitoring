@@ -3,7 +3,7 @@ from datetime import datetime
 from fastapi import APIRouter, Query
 
 from app.core.db import get_pool
-from app.features.anomalies.schemas import AnomalyView
+from app.features.anomalies.schemas import AnomalyListView, AnomalyView
 
 router = APIRouter(tags=["anomalies"])
 
@@ -14,7 +14,7 @@ async def get_anomalies(
     start: datetime | None = None,
     end: datetime | None = None,
     limit: int = Query(default=100, ge=1, le=1000),
-):
+) -> AnomalyListView:
     clauses: list[str] = []
     args: list = []
     if vehicle_id is not None:
@@ -41,4 +41,4 @@ async def get_anomalies(
         )
         for r in rows
     ]
-    return {"count": len(items), "anomalies": items}
+    return AnomalyListView(count=len(items), anomalies=items)
