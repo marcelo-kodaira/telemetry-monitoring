@@ -173,6 +173,34 @@ suite, and re-screenshot — not paper over symptoms. After the fixes: **3 Playw
 tests green**, and the screenshot showed a live dashboard (50 cards, statuses, batteries, anomalies,
 live zone bars).
 
+## Phase 7 — Code-smell sweep & remediation
+
+**My prompt** `[clear+motivation] [verify]`: "I see a lot of code smells and hard-to-read,
+hard-to-maintain code. Do a complete analysis and code sweep, and a plan to fix all of them."
+
+**AI output (summary):** A 5-lens adversarial code-smell sweep (backend architecture/coupling,
+SQL/data layer, backend quality, frontend/FSD, cross-cutting readability) — instructed to respect the
+deliberate ADR choices and hunt for smells *within* them. **41 findings** (7 high, 12 medium, 22 low),
+deduped into 8 themes, written up as a prioritized plan
+(`docs/superpowers/plans/2026-06-15-code-smell-remediation.md`). The dominant smell: duplicated domain
+vocabulary — the vehicle-status set lived in 4+ places with no single definition.
+
+**My decision** `[options]`: fix **all 8 themes**, on a **new branch + PR** reviewed independently of
+the feature work.
+
+**AI output (summary):** All eight applied behaviour-preservingly — `core/domain.py` StrEnums, a jsonb
+codec + `RETURNING` (no command-tag parsing), logging instead of silent `except: pass`, readable
+triple-quoted SQL, uniform typed responses, frontend FSD barrels + a shared `ProgressBar` + typed
+`StatusBadge`, `ZONES` single-source seeding, dead-code removal. One commit per theme; **17 backend +
+3 e2e green after each**. PR #2.
+
+**My correction — don't blindly apply findings:** the bar was *fix the root cause, not the lint count*.
+Two findings were deliberately **not** changed and documented as such: the `post_status` existence
+check (it is the 404 contract; vehicles are never deleted, so no real TOCTOU) and the read=pool /
+write=transaction split. And the sweep's flagged "circular dependency" was a **false positive** —
+there was no real cycle (vehicles never imports telemetry), so the misleading workaround comment was
+deleted rather than worked around.
+
 ## Final reflection — what AI was good at, where it failed, what I double-checked
 
 - **Strongest at breadth and structure.** Synthesizing the MADR / vertical-slice / FSD patterns,
@@ -189,7 +217,14 @@ live zone bars).
   `FOR UPDATE` reasoning against Postgres's actual behavior rather than the draft's prose), that the
   fault path truly matched the ADR's "terminal fault" rule, and that the e2e tests exercised the real
   cross-origin stack rather than an in-process shortcut.
+- **Review fan-out is high-recall, not high-precision.** The 41-finding code-smell sweep surfaced
+  real, valuable issues fast — but ~5 findings were facets of the same status-vocabulary problem and
+  at least one ("circular dependency") was simply wrong. Agents are excellent at *exhaustively
+  surfacing* candidates; the triage — dedup, reject false positives, decide what's actually worth
+  changing — stayed a human call. Applying all 41 verbatim would have been busywork plus one real
+  mistake.
 - **The pattern that worked:** AI for breadth (research, drafting, fan-out review, scaffolding) +
   human for direction and the quality bar (forcing alternatives, demanding a real browser, treating
-  every failure as a root-cause fix). The leverage was large, but it came from *driving and verifying*
-  the AI — never from trusting the first green check.
+  every failure as a root-cause fix, and deciding which review findings are real). The leverage was
+  large, but it came from *driving and verifying* the AI — never from trusting the first green check
+  or the first finding list.
