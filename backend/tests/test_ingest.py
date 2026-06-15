@@ -14,7 +14,6 @@ async def test_ingest_accepts_and_updates_snapshot(client, pool):
     r = await client.post("/telemetry", json=evt(battery_pct=12))
     assert r.status_code == 202
     body = r.json()
-    assert body["accepted"] is True
     assert any(a["type"] == "low_battery" for a in body["detected_anomalies"])
     v = await pool.fetchrow("SELECT status, battery_pct FROM vehicles WHERE id='v-1'")
     assert v["battery_pct"] == 12

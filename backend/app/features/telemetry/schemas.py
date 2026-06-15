@@ -31,7 +31,6 @@ class DetectedAnomaly(BaseModel):
 
 
 class IngestResult(BaseModel):
-    accepted: bool = True
     detected_anomalies: list[DetectedAnomaly] = Field(default_factory=list)
 
 

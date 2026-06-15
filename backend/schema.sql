@@ -62,14 +62,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_open_maintenance_per_vehicle
   ON maintenance (vehicle_id) WHERE status = 'open';
 
 -- Seeds (idempotent) --------------------------------------------------------
-INSERT INTO zone_counts (zone_id) VALUES
-  ('inbound_dock_a'),('inbound_dock_b'),('receiving_staging'),
-  ('aisle_a'),('aisle_b'),('aisle_c'),
-  ('high_bay_1'),('high_bay_2'),('bulk_storage'),
-  ('pick_zone_1'),('pick_zone_2'),('pack_station'),('sort_belt'),
-  ('outbound_dock_a'),('outbound_dock_b'),('shipping_staging'),
-  ('charging_bay_1'),('charging_bay_2'),('charging_bay_3'),('maintenance_bay')
-ON CONFLICT (zone_id) DO NOTHING;
+-- zone_counts is seeded from the Python ZONES constant in app/core/db.py (single source of truth).
 
 INSERT INTO vehicles (id)
   SELECT 'v-' || g FROM generate_series(1, 50) AS g

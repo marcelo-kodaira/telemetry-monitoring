@@ -3,7 +3,7 @@ import asyncpg
 from app.core.domain import VehicleStatus
 from app.features.telemetry.anomaly_rules import Anomaly, evaluate
 from app.features.telemetry.schemas import DetectedAnomaly, IngestResult, TelemetryEvent
-from app.features.vehicles.status_update import apply_fault
+from app.features.vehicles import apply_fault
 
 # Vehicle snapshot columns in one place — the FOR UPDATE read and the upsert below share this order.
 _SNAPSHOT_COLS = "status, battery_pct, lat, lon, speed_mps, last_timestamp, active_anomaly_types"

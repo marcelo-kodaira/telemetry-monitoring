@@ -7,6 +7,8 @@ from app.features.anomalies.schemas import AnomalyListView, AnomalyView
 
 router = APIRouter(tags=["anomalies"])
 
+_SELECT = "SELECT id, vehicle_id, type, severity, detected_at, details FROM anomalies"
+
 
 @router.get("/anomalies", summary="Query recent anomalies by vehicle and time range")
 async def get_anomalies(
@@ -15,24 +17,23 @@ async def get_anomalies(
     end: datetime | None = None,
     limit: int = Query(default=100, ge=1, le=1000),
 ) -> AnomalyListView:
-    clauses: list[str] = []
     args: list = []
+
+    def param(value: object) -> str:  # append a bound value, return its $N placeholder
+        args.append(value)
+        return f"${len(args)}"
+
+    clauses: list[str] = []
     if vehicle_id is not None:
-        args.append(vehicle_id)
-        clauses.append(f"vehicle_id = ${len(args)}")
+        clauses.append(f"vehicle_id = {param(vehicle_id)}")
     if start is not None:
-        args.append(start)
-        clauses.append(f"detected_at >= ${len(args)}")
+        clauses.append(f"detected_at >= {param(start)}")
     if end is not None:
-        args.append(end)
-        clauses.append(f"detected_at < ${len(args)}")
+        clauses.append(f"detected_at < {param(end)}")
     where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
-    args.append(limit)
 
     rows = await get_pool().fetch(
-        f"SELECT id, vehicle_id, type, severity, detected_at, details FROM anomalies"
-        f"{where} ORDER BY detected_at DESC LIMIT ${len(args)}",
-        *args,
+        f"{_SELECT}{where} ORDER BY detected_at DESC LIMIT {param(limit)}", *args
     )
     items = [
         AnomalyView(

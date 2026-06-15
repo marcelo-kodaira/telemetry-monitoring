@@ -15,7 +15,6 @@ class Settings(BaseSettings):
     battery_drain_pct_per_s: float = 2.0
     staleness_seconds: int = 10
     sweep_interval_seconds: int = 5
-    vehicle_count: int = 50
 
 
 settings = Settings()
