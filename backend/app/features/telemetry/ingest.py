@@ -8,7 +8,7 @@ from app.features.vehicles import apply_fault
 # Vehicle snapshot columns in one place — the FOR UPDATE read and the upsert below share this order.
 _SNAPSHOT_COLS = "status, battery_pct, lat, lon, speed_mps, last_timestamp, active_anomaly_types"
 
-_LOCK_PREV = f"SELECT {_SNAPSHOT_COLS} FROM vehicles WHERE id = $1 FOR UPDATE"
+_LOCK_PREVIOUS = f"SELECT {_SNAPSHOT_COLS} FROM vehicles WHERE id = $1 FOR UPDATE"
 
 _INSERT_TELEMETRY = """
 INSERT INTO telemetry
@@ -18,7 +18,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 
 _INSERT_ANOMALY = "INSERT INTO anomalies (vehicle_id, type, severity, details) VALUES ($1, $2, $3, $4)"
 
-_BUMP_ZONE = "UPDATE zone_counts SET entry_count = entry_count + 1 WHERE zone_id = $1"
+_BUMP_ZONE_COUNTER = "UPDATE zone_counts SET entry_count = entry_count + 1 WHERE zone_id = $1"
 
 _UPSERT_SNAPSHOT = """
 INSERT INTO vehicles
@@ -40,41 +40,42 @@ WHERE excluded.last_timestamp > vehicles.last_timestamp OR vehicles.last_timesta
 
 
 async def _persist_new_anomalies(
-    conn: asyncpg.Connection, vehicle_id: str, prev_types: set[str], active: list[Anomaly]
+    conn: asyncpg.Connection, vehicle_id: str, previous_types: set[str], active_anomalies: list[Anomaly]
 ) -> list[Anomaly]:
     """Edge-triggered: persist only anomaly types that were not already active for this vehicle."""
-    new = [a for a in active if a.type not in prev_types]
-    for a in new:
-        await conn.execute(_INSERT_ANOMALY, vehicle_id, a.type, a.severity, a.details)
-    return new
+    new_anomalies = [anomaly for anomaly in active_anomalies if anomaly.type not in previous_types]
+    for anomaly in new_anomalies:
+        await conn.execute(_INSERT_ANOMALY, vehicle_id, anomaly.type, anomaly.severity, anomaly.details)
+    return new_anomalies
 
 
-async def ingest_event(conn: asyncpg.Connection, e: TelemetryEvent) -> IngestResult:
+async def ingest_event(conn: asyncpg.Connection, event: TelemetryEvent) -> IngestResult:
     # Lock the vehicle row (if seeded) to serialize same-vehicle events for stateful diffing.
-    prev = await conn.fetchrow(_LOCK_PREV, e.vehicle_id)
-    prev_dict = dict(prev) if prev else None
+    previous_row = await conn.fetchrow(_LOCK_PREVIOUS, event.vehicle_id)
+    previous = dict(previous_row) if previous_row else None
 
     await conn.execute(
         _INSERT_TELEMETRY,
-        e.vehicle_id, e.ts, e.lat, e.lon, e.battery_pct, e.speed_mps, e.status, e.error_codes, e.zone_entered,
+        event.vehicle_id, event.ts, event.lat, event.lon, event.battery_pct, event.speed_mps,
+        event.status, event.error_codes, event.zone_entered,
     )
 
-    active = evaluate(prev_dict, e)
-    prev_types = set(prev_dict["active_anomaly_types"]) if prev_dict else set()
-    new = await _persist_new_anomalies(conn, e.vehicle_id, prev_types, active)
+    active_anomalies = evaluate(previous, event)
+    previous_types = set(previous["active_anomaly_types"]) if previous else set()
+    new_anomalies = await _persist_new_anomalies(conn, event.vehicle_id, previous_types, active_anomalies)
 
-    if e.zone_entered is not None:
-        await conn.execute(_BUMP_ZONE, e.zone_entered)
+    if event.zone_entered is not None:
+        await conn.execute(_BUMP_ZONE_COUNTER, event.zone_entered)
 
     await conn.execute(
         _UPSERT_SNAPSHOT,
-        e.vehicle_id, e.status, e.battery_pct, e.lat, e.lon, e.speed_mps, e.ts,
-        [a.type for a in active],
+        event.vehicle_id, event.status, event.battery_pct, event.lat, event.lon, event.speed_mps,
+        event.ts, [anomaly.type for anomaly in active_anomalies],
     )
 
-    if e.status == VehicleStatus.FAULT:
-        await apply_fault(conn, e.vehicle_id, reason="fault reported via telemetry")
+    if event.status == VehicleStatus.FAULT:
+        await apply_fault(conn, event.vehicle_id, reason="fault reported via telemetry")
 
     return IngestResult(
-        detected_anomalies=[DetectedAnomaly(type=a.type, severity=a.severity) for a in new]
+        detected_anomalies=[DetectedAnomaly(type=a.type, severity=a.severity) for a in new_anomalies]
     )

@@ -37,9 +37,9 @@ async def get_anomalies(
     )
     items = [
         AnomalyView(
-            id=r["id"], vehicle_id=r["vehicle_id"], type=r["type"], severity=r["severity"],
-            detected_at=r["detected_at"], details=r["details"],
+            id=row["id"], vehicle_id=row["vehicle_id"], type=row["type"], severity=row["severity"],
+            detected_at=row["detected_at"], details=row["details"],
         )
-        for r in rows
+        for row in rows
     ]
     return AnomalyListView(count=len(items), anomalies=items)
