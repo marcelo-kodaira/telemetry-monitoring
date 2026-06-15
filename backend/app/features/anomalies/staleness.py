@@ -1,16 +1,20 @@
 import asyncio
+import logging
 
 from app.core.config import settings
 from app.core.db import get_pool
+from app.core.domain import AnomalyType, Severity
 
-_STMT = """
+logger = logging.getLogger(__name__)
+
+_STMT = f"""
 WITH newly_offline AS (
     UPDATE vehicles SET is_offline = true
     WHERE NOT is_offline AND last_seen_at < now() - ($1 || ' seconds')::interval
     RETURNING id
 )
 INSERT INTO anomalies (vehicle_id, type, severity, details)
-SELECT id, 'stale_offline', 'critical', '{}'::jsonb FROM newly_offline
+SELECT id, '{AnomalyType.STALE_OFFLINE}', '{Severity.CRITICAL}', '{{}}'::jsonb FROM newly_offline
 """
 
 
@@ -24,8 +28,8 @@ async def _loop() -> None:
         await asyncio.sleep(settings.sweep_interval_seconds)
         try:
             await sweep_once()
-        except Exception:  # a transient error must not kill the sweep loop
-            pass
+        except Exception:  # resilient loop, but a recurring failure must be visible
+            logger.exception("staleness sweep failed")
 
 
 def start_staleness_sweep() -> asyncio.Task:

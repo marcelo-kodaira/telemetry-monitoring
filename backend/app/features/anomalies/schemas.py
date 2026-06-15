@@ -10,3 +10,8 @@ class AnomalyView(BaseModel):
     severity: str
     detected_at: datetime
     details: dict
+
+
+class AnomalyListView(BaseModel):
+    count: int
+    anomalies: list[AnomalyView]

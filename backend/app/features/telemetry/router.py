@@ -1,9 +1,12 @@
+import logging
+
 from fastapi import APIRouter, status
 
 from app.core.db import transaction
 from app.features.telemetry.ingest import ingest_event
 from app.features.telemetry.schemas import BatchItemResult, IngestResult, TelemetryEvent
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/telemetry", tags=["telemetry"])
 
 
@@ -27,6 +30,7 @@ async def post_batch(events: list[TelemetryEvent]) -> list[BatchItemResult]:
                 )
             )
         except Exception as exc:  # best-effort: one bad event must not abort the batch
+            logger.warning("batch ingest failed for %s @ %s: %s", e.vehicle_id, e.ts, exc)
             results.append(
                 BatchItemResult(vehicle_id=e.vehicle_id, ts=e.ts, accepted=False, error=str(exc))
             )

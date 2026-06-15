@@ -1,12 +1,15 @@
 """Drive 50 vehicles emitting telemetry; periodically converge on charging bays to exercise the
 zone counter and fault paths under concurrency. Usage: python simulate.py [seconds]"""
 import asyncio
+import logging
 import random
 import sys
 from datetime import datetime, timezone
 
 import httpx
 
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+logger = logging.getLogger("simulate")
 API = "http://localhost:8000"
 ZONES = ["aisle_a", "aisle_b", "pick_zone_1", "pack_station", "charging_bay_1", "charging_bay_2"]
 
@@ -22,8 +25,8 @@ async def tick(client: httpx.AsyncClient, vid: str, battery: int) -> None:
     )
     try:
         await client.post(f"{API}/telemetry", json=payload)
-    except httpx.HTTPError:
-        pass
+    except httpx.HTTPError as exc:
+        logger.debug("telemetry post failed for %s: %s", vid, exc)
 
 
 async def main(duration: int) -> None:

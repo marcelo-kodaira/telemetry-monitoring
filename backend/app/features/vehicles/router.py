@@ -8,7 +8,7 @@ from app.features.vehicles.status_update import apply_status
 router = APIRouter(tags=["vehicles"])
 
 
-@router.post("/vehicles/{vehicle_id}/status", response_model=StatusResult, summary="Update vehicle status")
+@router.post("/vehicles/{vehicle_id}/status", summary="Update vehicle status")
 async def post_status(vehicle_id: str, body: StatusUpdate) -> StatusResult:
     exists = await get_pool().fetchval("SELECT 1 FROM vehicles WHERE id = $1", vehicle_id)
     if not exists:
@@ -17,7 +17,7 @@ async def post_status(vehicle_id: str, body: StatusUpdate) -> StatusResult:
         return await apply_status(conn, vehicle_id, body.status, body.reason)
 
 
-@router.get("/vehicles", response_model=list[VehicleView], summary="List all vehicles with latest anomaly")
-async def get_vehicles() -> list[dict]:
+@router.get("/vehicles", summary="List all vehicles with latest anomaly")
+async def get_vehicles() -> list[VehicleView]:
     async with get_pool().acquire() as conn:
         return await list_vehicles(conn)
